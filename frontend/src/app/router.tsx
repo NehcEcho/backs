@@ -8,6 +8,7 @@ import { GbVideoPage } from "@/app/pages/GbVideoPage";
 import { GlobalStatusPage } from "@/app/pages/GlobalStatusPage";
 import { HomePortalPage } from "@/app/pages/HomePortalPage";
 import { LiveKitPage } from "@/app/pages/LiveKitPage";
+import { LocalWorkbenchPage } from "@/app/pages/LocalWorkbenchPage";
 import { LoginPage } from "@/app/pages/LoginPage";
 import { RtcFilesPage } from "@/app/pages/RtcFilesPage";
 import { SafetyAlertPage } from "@/app/pages/SafetyAlertPage";
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
       { path: "gb-video", Component: GbVideoPage },
       { path: "rtc-files", Component: RtcFilesPage },
       { path: "livekit", Component: LiveKitPage },
+      { path: "local-workbench", Component: LocalWorkbenchPage },
       { path: "analysis-result", Component: AnalysisPage },
       { path: "safety-alert", Component: SafetyAlertPage },
     ],

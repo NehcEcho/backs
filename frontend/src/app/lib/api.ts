@@ -1,6 +1,14 @@
 import { APP_CONFIG } from "@/app/lib/config";
 import type { GatewayResponse, RequestResult } from "@/app/types";
 
+function trimTrailingSlash(value: string) {
+  return value.endsWith("/") ? value.slice(0, -1) : value;
+}
+
+function getAppApiBaseUrl() {
+  return trimTrailingSlash(APP_CONFIG.apiBaseUrl).replace(/\/proxy$/, "");
+}
+
 export function getStoredToken() {
   return localStorage.getItem(APP_CONFIG.localStorageTokenKey) || "";
 }
@@ -25,7 +33,7 @@ export function clearStoredUsername() {
   localStorage.removeItem(APP_CONFIG.localStorageUsernameKey);
 }
 
-async function request<T>(path: string, init?: RequestInit, raw = false): Promise<RequestResult<T>> {
+async function request<T>(baseUrl: string, path: string, init?: RequestInit, raw = false): Promise<RequestResult<T>> {
   try {
     const headers = new Headers(init?.headers || {});
     const token = getStoredToken();
@@ -36,7 +44,7 @@ async function request<T>(path: string, init?: RequestInit, raw = false): Promis
       headers.set("Content-Type", "application/json");
     }
 
-    const response = await fetch(`${APP_CONFIG.apiBaseUrl}${path}`, {
+    const response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers,
     });
@@ -60,12 +68,21 @@ async function request<T>(path: string, init?: RequestInit, raw = false): Promis
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path, { method: "GET" }),
+  get: <T>(path: string) => request<T>(APP_CONFIG.apiBaseUrl, path, { method: "GET" }),
   post: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
+    request<T>(APP_CONFIG.apiBaseUrl, path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
   put: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
-  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+    request<T>(APP_CONFIG.apiBaseUrl, path, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
+  delete: <T>(path: string) => request<T>(APP_CONFIG.apiBaseUrl, path, { method: "DELETE" }),
+};
+
+export const appApi = {
+  get: <T>(path: string) => request<T>(getAppApiBaseUrl(), path, { method: "GET" }),
+  post: <T>(path: string, body?: unknown) =>
+    request<T>(getAppApiBaseUrl(), path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
+  put: <T>(path: string, body?: unknown) =>
+    request<T>(getAppApiBaseUrl(), path, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
+  delete: <T>(path: string) => request<T>(getAppApiBaseUrl(), path, { method: "DELETE" }),
 };
 
 export function buildDownloadUrl(path: string) {
