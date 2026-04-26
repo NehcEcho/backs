@@ -9,6 +9,10 @@ frontend/.env.local
 frontend/.env.*.local
 project/node_modules/
 project/
+project
+frontend/*.tsbuildinfo
+frontend/*.js
+frontend/*.d.ts
 .idea/
 .vscode/
 *.log
