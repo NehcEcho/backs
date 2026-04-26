@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { LoaderCircle } from "lucide-react";
 import { prettyJson } from "@/app/lib/utils";
 import type { RequestResult } from "@/app/types";
@@ -59,6 +59,125 @@ export function DangerButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button className="button button-danger" {...props} />;
 }
 
+export function HintPanel({
+  title,
+  children,
+  tone = "neutral",
+  style,
+}: {
+  title?: string;
+  children: ReactNode;
+  tone?: "neutral" | "info" | "warn";
+  style?: CSSProperties;
+}) {
+  return (
+    <div className={`hint-panel hint-panel-${tone}`} style={style}>
+      {title ? <div className="hint-title">{title}</div> : null}
+      <div className="hint-content">{children}</div>
+    </div>
+  );
+}
+
+export function JsonErrorNotice({ error }: { error: string | null }) {
+  if (!error) return null;
+  return <HintPanel tone="warn" title="JSON 输入有误">{error}</HintPanel>;
+}
+
+export function QuickFillButton({ children, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return <button className="button button-secondary quick-fill-button" type="button" {...props}>{children}</button>;
+}
+
+export function ResultSummary({
+  title,
+  items,
+}: {
+  title: string;
+  items: Array<{ label: string; value: ReactNode; action?: ReactNode }>;
+}) {
+  const visibleItems = items.filter((item) => item.value !== undefined && item.value !== null && item.value !== "");
+  if (!visibleItems.length) return null;
+
+  return (
+    <div className="result-summary">
+      <div className="result-summary-title">{title}</div>
+      <div className="result-summary-grid">
+        {visibleItems.map((item) => (
+          <div key={item.label} className="result-summary-item">
+            <div className="result-summary-label">{item.label}</div>
+            <div className="result-summary-value">{item.value}</div>
+            {item.action ? <div className="result-summary-action">{item.action}</div> : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ResultPreviewList({
+  title,
+  items,
+}: {
+  title: string;
+  items: Array<{ id: string; title: ReactNode; meta?: ReactNode; action?: ReactNode }>;
+}) {
+  if (!items.length) return null;
+
+  return (
+    <div className="result-summary">
+      <div className="result-summary-title">{title}</div>
+      <div className="preview-list">
+        {items.map((item) => (
+          <div key={item.id} className="preview-item">
+            <div className="preview-item-main">
+              <div className="preview-item-title">{item.title}</div>
+              {item.meta ? <div className="preview-item-meta">{item.meta}</div> : null}
+            </div>
+            {item.action ? <div className="preview-item-action">{item.action}</div> : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function CompactTable({
+  title,
+  columns,
+  rows,
+}: {
+  title: string;
+  columns: string[];
+  rows: Array<Array<ReactNode>>;
+}) {
+  if (!rows.length) return null;
+
+  return (
+    <div className="result-summary">
+      <div className="result-summary-title">{title}</div>
+      <div className="compact-table-wrap">
+        <table className="compact-table">
+          <thead>
+            <tr>
+              {columns.map((column) => (
+                <th key={column}>{column}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={`${title}-${index}`}>
+                {row.map((cell, cellIndex) => (
+                  <td key={`${title}-${index}-${cellIndex}`}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function ResultPanel<T>({ result }: { result: RequestResult<T> | null }) {
   if (!result) {
     return <div className="empty-hint" style={{ minHeight: 180 }}>提交任一接口后，这里会显示后端统一返回和原始 payload。</div>;
@@ -75,11 +194,12 @@ export function ResultPanel<T>({ result }: { result: RequestResult<T> | null }) 
   );
 }
 
-export function Field({ label, children }: { label: string; children: ReactNode }) {
+export function Field({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
   return (
     <label className="field">
       <span className="field-label">{label}</span>
       {children}
+      {hint ? <span className="field-hint">{hint}</span> : null}
     </label>
   );
 }

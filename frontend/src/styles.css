@@ -99,6 +99,211 @@ a {
   border: 1px solid var(--line);
 }
 
+.hint-panel {
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.hint-panel-info {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.16);
+}
+
+.hint-panel-warn {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.hint-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.hint-content {
+  font-size: 13px;
+  color: var(--text-soft);
+  line-height: 1.75;
+}
+
+.hint-content code {
+  font-size: 12px;
+}
+
+.result-summary {
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid var(--line);
+}
+
+.result-summary-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.24px;
+  color: var(--text-soft);
+  margin-bottom: 12px;
+}
+
+.result-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.result-summary-item {
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.result-summary-label {
+  font-size: 11px;
+  color: var(--text-faint);
+  letter-spacing: 0.2px;
+}
+
+.result-summary-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.result-summary-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.preview-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.preview-item-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preview-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.preview-item-meta {
+  font-size: 12px;
+  color: var(--text-soft);
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.preview-item-action {
+  display: flex;
+  align-items: center;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.photo-card {
+  overflow: hidden;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.photo-link {
+  display: block;
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(16, 185, 129, 0.08));
+}
+
+.photo-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.photo-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.photo-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.photo-card-meta {
+  font-size: 12px;
+  color: var(--text-soft);
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.compact-table-wrap {
+  overflow: auto;
+}
+
+.compact-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+}
+
+.compact-table th {
+  text-align: left;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-weight: 700;
+  letter-spacing: 0.18px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.compact-table td {
+  font-size: 12px;
+  color: var(--text-soft);
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  vertical-align: top;
+}
+
 .hover-lift {
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease;
 }
@@ -204,6 +409,12 @@ a {
   letter-spacing: 0.2px;
 }
 
+.field-hint {
+  font-size: 12px;
+  color: var(--text-faint);
+  line-height: 1.6;
+}
+
 .input,
 .select,
 .textarea {
@@ -265,6 +476,11 @@ a {
   color: var(--text-soft);
   background: rgba(255, 255, 255, 0.55);
   border-color: var(--line);
+}
+
+.quick-fill-button {
+  padding: 8px 12px;
+  font-size: 12px;
 }
 
 .button-danger {
