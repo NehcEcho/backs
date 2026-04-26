@@ -6,6 +6,23 @@ import org.springframework.stereotype.Service;
 @Service
 public class PayloadValidationService {
 
+    public void validatePasswordUpdate(JsonNode body) {
+        ensureBody(body);
+        requireText(body, "password");
+    }
+
+    public void validateDeviceUpdate(JsonNode body) {
+        ensureBody(body);
+        if (!body.hasNonNull("deviceName") && !body.hasNonNull("productId")) {
+            throw new IllegalArgumentException("deviceName 或 productId 至少传一个");
+        }
+    }
+
+    public void validateDeviceFileDelete(JsonNode body) {
+        ensureBody(body);
+        requireText(body, "path");
+    }
+
     public void validateFencePayload(JsonNode body, boolean createMode) {
         ensureBody(body);
         if (createMode) {
@@ -65,6 +82,33 @@ public class PayloadValidationService {
         if (!isMeeting && deviceCount > 1) {
             throw new IllegalArgumentException("非会议模式下 devices 不能超过 1 个");
         }
+    }
+
+    public void validateTalkGroupPayload(JsonNode body) {
+        ensureBody(body);
+        requireText(body, "groupName");
+        requireArray(body, "deviceList");
+    }
+
+    public void validateAlarmUpdate(JsonNode body) {
+        ensureBody(body);
+        if (!body.hasNonNull("remark") && !body.hasNonNull("level") && !body.hasNonNull("handled")) {
+            throw new IllegalArgumentException("remark、level、handled 至少传一个");
+        }
+    }
+
+    public void validateRtcDialogRequest(JsonNode body) {
+        ensureBody(body);
+        requireText(body, "id");
+        requirePresent(body, "index");
+        requireText(body, "sdp");
+    }
+
+    public void validateRecordFileFilter(JsonNode body) {
+        ensureBody(body);
+        requirePresent(body, "page");
+        requirePresent(body, "pageSize");
+        requirePresent(body, "filter");
     }
 
     private void ensureBody(JsonNode body) {

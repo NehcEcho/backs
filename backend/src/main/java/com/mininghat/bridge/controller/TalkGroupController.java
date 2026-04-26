@@ -42,6 +42,7 @@ public class TalkGroupController {
             @RequestHeader("X-Access-Token") String token,
             @RequestBody JsonNode body
     ) {
+        payloadValidationService.validateTalkGroupPayload(body);
         return proxyResponseMapper.toJsonResponse(companyApiGateway.post("/v1/talkgroups", token, body));
     }
 
@@ -59,6 +60,7 @@ public class TalkGroupController {
             @PathVariable String id,
             @RequestBody JsonNode body
     ) {
+        payloadValidationService.validateTalkGroupPayload(body);
         return proxyResponseMapper.toJsonResponse(companyApiGateway.put("/v1/talkgroups/" + id, token, body));
     }
 

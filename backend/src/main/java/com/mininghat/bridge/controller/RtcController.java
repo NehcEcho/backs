@@ -3,6 +3,7 @@ package com.mininghat.bridge.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.mininghat.bridge.model.GatewayResponse;
 import com.mininghat.bridge.service.CompanyApiGateway;
+import com.mininghat.bridge.service.PayloadValidationService;
 import com.mininghat.bridge.support.ProxyResponseMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,10 +19,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class RtcController {
 
     private final CompanyApiGateway companyApiGateway;
+    private final PayloadValidationService payloadValidationService;
     private final ProxyResponseMapper proxyResponseMapper;
 
-    public RtcController(CompanyApiGateway companyApiGateway, ProxyResponseMapper proxyResponseMapper) {
+    public RtcController(
+            CompanyApiGateway companyApiGateway,
+            PayloadValidationService payloadValidationService,
+            ProxyResponseMapper proxyResponseMapper
+    ) {
         this.companyApiGateway = companyApiGateway;
+        this.payloadValidationService = payloadValidationService;
         this.proxyResponseMapper = proxyResponseMapper;
     }
 
@@ -38,6 +45,7 @@ public class RtcController {
             @RequestHeader("X-Access-Token") String token,
             @RequestBody JsonNode body
     ) {
+        payloadValidationService.validateRtcDialogRequest(body);
         return proxyResponseMapper.toJsonResponse(companyApiGateway.post("/bvcsp/v1/dialog/device/webrtc", token, body));
     }
 
@@ -46,6 +54,7 @@ public class RtcController {
             @RequestHeader("X-Access-Token") String token,
             @RequestBody JsonNode body
     ) {
+        payloadValidationService.validateRtcDialogRequest(body);
         return proxyResponseMapper.toJsonResponse(companyApiGateway.post("/bvcsp/v1/dialog/device/bvrtc", token, body));
     }
 
@@ -62,6 +71,7 @@ public class RtcController {
             @RequestHeader("X-Access-Token") String token,
             @RequestBody JsonNode body
     ) {
+        payloadValidationService.validateRecordFileFilter(body);
         return proxyResponseMapper.toJsonResponse(companyApiGateway.post("/bvcsp/v1/recordfile/filter", token, body));
     }
 
@@ -71,6 +81,7 @@ public class RtcController {
             @PathVariable String puid,
             @RequestBody JsonNode body
     ) {
+        payloadValidationService.validateRecordFileFilter(body);
         return proxyResponseMapper.toJsonResponse(
                 companyApiGateway.post("/bvcsp/v1/pu/recordfile/filter/" + puid, token, body)
         );

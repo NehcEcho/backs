@@ -98,6 +98,7 @@ public class FenceAlarmController {
             @PathVariable String id,
             @RequestBody JsonNode body
     ) {
+        payloadValidationService.validateAlarmUpdate(body);
         return proxyResponseMapper.toJsonResponse(companyApiGateway.put("/v1/alarms/" + id, token, body));
     }
 }

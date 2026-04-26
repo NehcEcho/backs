@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.mininghat.bridge.dto.AuthLoginRequest;
 import com.mininghat.bridge.model.GatewayResponse;
 import com.mininghat.bridge.service.CompanyApiGateway;
+import com.mininghat.bridge.service.PayloadValidationService;
 import com.mininghat.bridge.support.ProxyResponseMapper;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -21,10 +22,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthUserController {
 
     private final CompanyApiGateway companyApiGateway;
+    private final PayloadValidationService payloadValidationService;
     private final ProxyResponseMapper proxyResponseMapper;
 
-    public AuthUserController(CompanyApiGateway companyApiGateway, ProxyResponseMapper proxyResponseMapper) {
+    public AuthUserController(
+            CompanyApiGateway companyApiGateway,
+            PayloadValidationService payloadValidationService,
+            ProxyResponseMapper proxyResponseMapper
+    ) {
         this.companyApiGateway = companyApiGateway;
+        this.payloadValidationService = payloadValidationService;
         this.proxyResponseMapper = proxyResponseMapper;
     }
 
@@ -44,6 +51,7 @@ public class AuthUserController {
             @PathVariable String username,
             @RequestBody JsonNode body
     ) {
+        payloadValidationService.validatePasswordUpdate(body);
         return proxyResponseMapper.toJsonResponse(
                 companyApiGateway.put("/v1/users/" + username + "/password", token, body)
         );

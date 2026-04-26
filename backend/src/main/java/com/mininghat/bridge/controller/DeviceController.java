@@ -3,6 +3,7 @@ package com.mininghat.bridge.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.mininghat.bridge.model.GatewayResponse;
 import com.mininghat.bridge.service.CompanyApiGateway;
+import com.mininghat.bridge.service.PayloadValidationService;
 import com.mininghat.bridge.support.ProxyResponseMapper;
 import com.mininghat.bridge.util.RequestParamUtils;
 import org.springframework.http.ResponseEntity;
@@ -22,10 +23,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class DeviceController {
 
     private final CompanyApiGateway companyApiGateway;
+    private final PayloadValidationService payloadValidationService;
     private final ProxyResponseMapper proxyResponseMapper;
 
-    public DeviceController(CompanyApiGateway companyApiGateway, ProxyResponseMapper proxyResponseMapper) {
+    public DeviceController(
+            CompanyApiGateway companyApiGateway,
+            PayloadValidationService payloadValidationService,
+            ProxyResponseMapper proxyResponseMapper
+    ) {
         this.companyApiGateway = companyApiGateway;
+        this.payloadValidationService = payloadValidationService;
         this.proxyResponseMapper = proxyResponseMapper;
     }
 
@@ -58,6 +65,7 @@ public class DeviceController {
             @PathVariable String id,
             @RequestBody JsonNode body
     ) {
+        payloadValidationService.validateDeviceUpdate(body);
         return proxyResponseMapper.toJsonResponse(companyApiGateway.put("/v1/devices/" + id, token, body));
     }
 
@@ -76,6 +84,7 @@ public class DeviceController {
             @RequestHeader("X-Access-Token") String token,
             @RequestBody JsonNode body
     ) {
+        payloadValidationService.validateDeviceFileDelete(body);
         return proxyResponseMapper.toJsonResponse(companyApiGateway.post("/v1/device/file/delete", token, body));
     }
 
