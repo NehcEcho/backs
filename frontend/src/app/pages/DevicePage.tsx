@@ -1,9 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
-import { Cpu, FileSearch, MapPinned, Pencil, Search, Trash2 } from "lucide-react";
-import { CompactTable, Field, HintPanel, PrimaryButton, QuickFillButton, ResultPanel, ResultPreviewList, ResultSummary, SectionCard, SecondaryButton, StatCard, StatusBadge } from "@/app/components/common";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Camera, Cpu, FileSearch, LocateFixed, MapPinned, Pencil, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { Field, HintPanel, PrimaryButton, QuickFillButton, ResultPreviewList, ResultSummary, SectionCard, SecondaryButton, StatCard, StatusBadge } from "@/app/components/common";
+import { useRequest } from "@/app/hooks/useRequest";
+import { useAmap } from "@/app/hooks/useAmap";
 import { api } from "@/app/lib/api";
 import { buildQuery, findArrayByObjectKeys, findFirstArray, findFirstByKeys, toDateInputValue, toDatetimeLocalValue, toPuid, toUnixSecondsFromDatetimeLocal } from "@/app/lib/utils";
-import { useRequest } from "@/app/hooks/useRequest";
+
+type DeviceAsset = {
+  id: string;
+  businessId: string;
+  name: string;
+  status: string;
+  company: string;
+  productId: string;
+};
 
 export function DevicePage() {
   const today = new Date();
@@ -19,23 +29,17 @@ export function DevicePage() {
   const deviceFiles = useRequest<any>();
   const deleteFile = useRequest<any>();
   const locations = useRequest<any>();
+  const locationMapRef = useRef<HTMLDivElement | null>(null);
+  const locationMapInstanceRef = useRef<any>(null);
+  const locationOverlayRef = useRef<any[]>([]);
+  const { ready: amapReady, error: amapError } = useAmap();
 
-  const [listForm, setListForm] = useState({ is_page: true, page_index: 1, page_size: 10, device_id: "", device_name: "", company_id: "", company_name: "" });
+  const [listForm, setListForm] = useState({ is_page: true, page_index: 1, page_size: 12, device_id: "", device_name: "", company_id: "", company_name: "" });
   const [deviceId, setDeviceId] = useState("1");
   const [deviceUpdate, setDeviceUpdate] = useState({ id: "1", deviceName: "", productId: "" });
   const [fileForm, setFileForm] = useState({ type: "photo", device_id: "", date: todayDate });
   const [deletePath, setDeletePath] = useState("");
   const [locationForm, setLocationForm] = useState({ device_id: "", levels: "1,2,3,4", start_time: "", end_time: "" });
-
-  const stats = useMemo(
-    () => [
-      { label: "设备查询能力", value: "4 类", trend: "分组 / 列表 / 详情 / 更新", color: "#10b981", bg: "rgba(16,185,129,0.1)", icon: <Cpu size={20} color="#10b981" /> },
-      { label: "文件能力", value: "已接通", trend: "查询与删除", color: "#3b82f6", bg: "rgba(59,130,246,0.1)", icon: <FileSearch size={20} color="#3b82f6" /> },
-      { label: "轨迹能力", value: "已接通", trend: "时间范围 + 精度过滤", color: "#f59e0b", bg: "rgba(245,158,11,0.1)", icon: <MapPinned size={20} color="#f59e0b" /> },
-      { label: "RTC 辅助字段", value: toPuid(fileForm.device_id || "31011500991323310018"), trend: "设备 ID 可快速转 puid", color: "#8b5cf6", bg: "rgba(139,92,246,0.1)", icon: <Pencil size={20} color="#8b5cf6" /> },
-    ],
-    [fileForm.device_id],
-  );
 
   const latestDevicePayload = deviceGroups.result?.data?.payload ?? devices.result?.data?.payload ?? deviceDetail.result?.data?.payload;
   const latestDeviceId = useMemo(() => {
@@ -76,6 +80,33 @@ export function DevicePage() {
     };
   }, [locations.result]);
 
+  const deviceItems = useMemo(() => {
+    return findArrayByObjectKeys(latestDevicePayload, ["id", "device_id", "deviceName", "status"]).slice(0, 24).map((item, index) => ({
+      id: String(findFirstByKeys(item, ["id", "deviceId"]) ?? index + 1),
+      businessId: String(findFirstByKeys(item, ["device_id", "deviceId", "sn", "serial"]) ?? "-"),
+      name: String(findFirstByKeys(item, ["deviceName", "name"]) ?? `设备 ${index + 1}`),
+      status: String(findFirstByKeys(item, ["status"]) ?? "未知"),
+      company: String(findFirstByKeys(item, ["companyName", "company_name"]) ?? "未分配单位"),
+      productId: String(findFirstByKeys(item, ["productId"]) ?? "-"),
+    })) as DeviceAsset[];
+  }, [latestDevicePayload]);
+
+  const selectedDevice = useMemo(() => {
+    const detailPayload = deviceDetail.result?.data?.payload;
+    const detailId = findFirstByKeys(detailPayload, ["id", "deviceId"]);
+    if (detailId !== undefined) {
+      return {
+        id: String(detailId),
+        businessId: String(findFirstByKeys(detailPayload, ["device_id", "deviceId", "sn", "serial"]) ?? "-"),
+        name: String(findFirstByKeys(detailPayload, ["deviceName", "name"]) ?? "未命名设备"),
+        status: String(findFirstByKeys(detailPayload, ["status"]) ?? "未知"),
+        company: String(findFirstByKeys(detailPayload, ["companyName", "company_name"]) ?? "未分配单位"),
+        productId: String(findFirstByKeys(detailPayload, ["productId"]) ?? "-"),
+      };
+    }
+    return deviceItems.find((item) => item.id === deviceId) ?? deviceItems[0] ?? null;
+  }, [deviceDetail.result, deviceItems, deviceId]);
+
   const filePreviewItems = useMemo(() => {
     const items = findArrayByObjectKeys(deviceFiles.result?.data?.payload, ["path", "filePath", "type"]).slice(0, 4);
     return items.map((item, index) => {
@@ -114,7 +145,7 @@ export function DevicePage() {
   }, [deviceFiles.result, fileForm.type]);
 
   const locationPreviewItems = useMemo(() => {
-    const items = findArrayByObjectKeys(locations.result?.data?.payload, ["longitude", "latitude", "device_id", "deviceId"]).slice(0, 4);
+    const items = findArrayByObjectKeys(locations.result?.data?.payload, ["longitude", "latitude", "device_id", "deviceId"]).slice(0, 6);
     return items.map((item, index) => {
       const device = findFirstByKeys(item, ["device_id", "deviceId"]);
       const longitude = findFirstByKeys(item, ["longitude", "lng"]);
@@ -124,26 +155,43 @@ export function DevicePage() {
         id: `${device || longitude || index}`,
         title: device ? `设备 ${String(device)}` : `轨迹点 ${index + 1}`,
         meta: [longitude !== undefined && latitude !== undefined ? `坐标 ${String(longitude)}, ${String(latitude)}` : null, time ? `时间 ${String(time)}` : null].filter(Boolean).join(" | "),
-        action: device ? <QuickFillButton onClick={() => setLocationForm((prev) => ({ ...prev, device_id: String(device) }))}>带入查询</QuickFillButton> : undefined,
+        action: device ? <QuickFillButton onClick={() => setLocationForm((prev) => ({ ...prev, device_id: String(device) }))}>定位此设备</QuickFillButton> : undefined,
       };
     });
   }, [locations.result]);
 
-  const deviceRows = useMemo(() => {
-    return findArrayByObjectKeys(latestDevicePayload, ["id", "device_id", "deviceName", "status"]).slice(0, 5).map((item) => {
-      const id = findFirstByKeys(item, ["id", "deviceId"]);
-      const bizId = findFirstByKeys(item, ["device_id", "deviceId", "sn", "serial"]);
-      const name = findFirstByKeys(item, ["deviceName", "name"]);
-      const status = findFirstByKeys(item, ["status"]);
-      return [
-        String(id ?? "-"),
-        String(bizId ?? "-"),
-        String(name ?? "-"),
-        String(status ?? "-"),
-        id ? <QuickFillButton onClick={() => setDeviceId(String(id))}>详情</QuickFillButton> : "-",
-      ];
-    });
-  }, [latestDevicePayload]);
+  const latestLocationPoint = useMemo(() => {
+    const items = findArrayByObjectKeys(locations.result?.data?.payload, ["longitude", "latitude", "device_id", "deviceId"]);
+    const first = items[0];
+    if (!first) return null;
+    const longitude = findFirstByKeys(first, ["longitude", "lng"]);
+    const latitude = findFirstByKeys(first, ["latitude", "lat"]);
+    const time = findFirstByKeys(first, ["time", "gpsTime", "createTime"]);
+    const device = findFirstByKeys(first, ["device_id", "deviceId"]);
+    const lng = longitude === undefined ? null : Number(longitude);
+    const lat = latitude === undefined ? null : Number(latitude);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+    return {
+      longitude: lng,
+      latitude: lat,
+      time: time === undefined ? "" : String(time),
+      deviceId: device === undefined ? "" : String(device),
+    };
+  }, [locations.result]);
+
+  const stats = useMemo(
+    () => [
+      { label: "当前可见设备", value: String(deviceItems.length || 0), trend: "来自当前筛选结果", color: "#10b981", bg: "rgba(16,185,129,0.1)", icon: <Cpu size={20} color="#10b981" /> },
+      { label: "当前查看设备", value: selectedDevice?.name || "未选择", trend: selectedDevice?.businessId || "等待选择设备", color: "#3b82f6", bg: "rgba(59,130,246,0.1)", icon: <ShieldCheck size={20} color="#3b82f6" /> },
+      { label: "照片查询日期", value: fileForm.date, trend: fileForm.type === "photo" ? "按单日照片检索" : "切换到视频文件检索", color: "#f59e0b", bg: "rgba(245,158,11,0.1)", icon: <Camera size={20} color="#f59e0b" /> },
+      { label: "RTC 关联号", value: toPuid(selectedDevice?.businessId || fileForm.device_id || "31011500991323310018"), trend: "可供视频与下载链路复用", color: "#8b5cf6", bg: "rgba(139,92,246,0.1)", icon: <LocateFixed size={20} color="#8b5cf6" /> },
+    ],
+    [deviceItems.length, selectedDevice, fileForm.date, fileForm.device_id, fileForm.type],
+  );
+
+  useEffect(() => {
+    void devices.run(() => api.get(`/v1/devices${buildQuery({ ...listForm, company_id: listForm.company_id || undefined })}`));
+  }, []);
 
   useEffect(() => {
     if (!latestDeviceId) return;
@@ -153,7 +201,6 @@ export function DevicePage() {
 
   useEffect(() => {
     if (!latestBusinessDeviceId) return;
-    setListForm((prev) => ({ ...prev, device_id: latestBusinessDeviceId }));
     setFileForm((prev) => ({ ...prev, device_id: latestBusinessDeviceId }));
     setLocationForm((prev) => ({ ...prev, device_id: latestBusinessDeviceId }));
   }, [latestBusinessDeviceId]);
@@ -182,112 +229,182 @@ export function DevicePage() {
     }));
   }, [latestLocationTimeRange]);
 
+  useEffect(() => {
+    if (!amapReady || !locationMapRef.current || !window.AMap) return;
+
+    if (!locationMapInstanceRef.current) {
+      locationMapInstanceRef.current = new window.AMap.Map(locationMapRef.current, {
+        zoom: 15,
+        center: latestLocationPoint ? [latestLocationPoint.longitude, latestLocationPoint.latitude] : [116.397428, 39.90923],
+        showLabel: true,
+        viewMode: "2D",
+      });
+    }
+
+    const map = locationMapInstanceRef.current;
+    locationOverlayRef.current.forEach((item) => map.remove(item));
+    locationOverlayRef.current = [];
+
+    if (!latestLocationPoint) return;
+
+    const marker = new window.AMap.Marker({
+      position: [latestLocationPoint.longitude, latestLocationPoint.latitude],
+      anchor: "bottom-center",
+      content: `<div class="trajectory-hat-pin"><div class="trajectory-hat-pin-core"></div></div>`,
+    });
+
+    const ring = new window.AMap.CircleMarker({
+      center: [latestLocationPoint.longitude, latestLocationPoint.latitude],
+      radius: 18,
+      strokeColor: "#8b5cf6",
+      strokeWeight: 2,
+      fillColor: "#8b5cf6",
+      fillOpacity: 0.16,
+    });
+
+    const infoWindow = new window.AMap.InfoWindow({
+      offset: new window.AMap.Pixel(0, -20),
+      content: `<div style="padding:12px;min-width:220px;line-height:1.7;"><div style="font-size:14px;font-weight:600;color:#2d2d2d;">帽子最新定位点</div><div style="font-size:12px;color:#6b7280;">设备号：${latestLocationPoint.deviceId || "-"}</div><div style="font-size:12px;color:#6b7280;">经纬度：${latestLocationPoint.longitude}, ${latestLocationPoint.latitude}</div><div style="font-size:12px;color:#6b7280;">时间：${latestLocationPoint.time || "-"}</div></div>`,
+    });
+
+    marker.on("click", () => infoWindow.open(map, [latestLocationPoint.longitude, latestLocationPoint.latitude]));
+    marker.setMap(map);
+    ring.setMap(map);
+    locationOverlayRef.current = [marker, ring];
+    map.setCenter([latestLocationPoint.longitude, latestLocationPoint.latitude]);
+    map.setFitView(locationOverlayRef.current, false, [60, 60, 60, 60]);
+
+    return () => {
+      locationOverlayRef.current.forEach((item) => map.remove(item));
+      locationOverlayRef.current = [];
+    };
+  }, [amapReady, latestLocationPoint]);
+
+  useEffect(() => () => {
+    if (locationMapInstanceRef.current) {
+      locationMapInstanceRef.current.destroy();
+      locationMapInstanceRef.current = null;
+    }
+  }, []);
+
+  const applySelectedDevice = (asset: DeviceAsset) => {
+    setDeviceId(asset.id);
+    setDeviceUpdate((prev) => ({ ...prev, id: asset.id, deviceName: asset.name, productId: asset.productId !== "-" ? asset.productId : prev.productId }));
+    setFileForm((prev) => ({ ...prev, device_id: asset.businessId }));
+    setLocationForm((prev) => ({ ...prev, device_id: asset.businessId }));
+    void deviceDetail.run(() => api.get(`/v1/devices/${asset.id}`));
+  };
+
   return (
     <div className="page-stack">
       <div className="page-heading">
         <div>
           <h1 className="page-title">设备管理</h1>
-          <div className="page-subtitle">覆盖高频设备 REST 能力：分组、列表、详情、更新、文件检索/删除、历史轨迹；语音 websocket 与 RTC 下载仍在其他页面配合使用。</div>
+          <div className="page-subtitle">围绕设备资产、现场照片和历史轨迹进行日常管理，不再暴露测试型接口入口。</div>
         </div>
         <div className="badge-row">
-          <StatusBadge label="设备 REST 主流程已接通" color="#059669" background="rgba(16,185,129,0.1)" />
+          <StatusBadge label="设备业务已接通" color="#059669" background="rgba(16,185,129,0.1)" />
         </div>
       </div>
 
       <div className="grid-4">{stats.map((item) => <StatCard key={item.label} {...item} />)}</div>
 
       <div className="split-two">
-        <SectionCard title="设备分组与列表" icon={<Search size={18} color="#10b981" />}>
+        <SectionCard title="设备资产总览" icon={<Search size={18} color="#10b981" />}>
           <div className="stack-16">
-            <HintPanel title="使用说明" tone="info">
-              这里对应后端代理的设备查询接口。先点“获取用户设备分组”确认当前账号可见范围，再按设备 ID、名称或公司字段缩小结果，避免直接全量翻页检索。
+            <HintPanel title="资产检索" tone="info">
+              先按设备号、名称或所属单位缩小范围，再进入单设备详情、照片与轨迹。页面会自动把选中的设备带入下方模块。
             </HintPanel>
-            <div className="badge-row">
-              <PrimaryButton loading={deviceGroups.loading} onClick={() => deviceGroups.run(() => api.get("/v1/user/devices"))}>获取用户设备分组</PrimaryButton>
-              {latestDeviceId ? <QuickFillButton onClick={() => setDeviceId(latestDeviceId)}>带入详情 ID</QuickFillButton> : null}
-              {latestBusinessDeviceId ? <QuickFillButton onClick={() => {
-                setFileForm((prev) => ({ ...prev, device_id: latestBusinessDeviceId }));
-                setLocationForm((prev) => ({ ...prev, device_id: latestBusinessDeviceId }));
-              }}>带入业务设备号</QuickFillButton> : null}
-            </div>
             <div className="grid-2">
-              <Field label="设备 ID"><input className="input" value={listForm.device_id} onChange={(e) => setListForm({ ...listForm, device_id: e.target.value })} /></Field>
-              <Field label="设备名称"><input className="input" value={listForm.device_name} onChange={(e) => setListForm({ ...listForm, device_name: e.target.value })} /></Field>
+              <Field label="设备业务号"><input className="input" value={listForm.device_id} onChange={(e) => setListForm({ ...listForm, device_id: e.target.value })} placeholder="31011500991323310014" /></Field>
+              <Field label="设备名称"><input className="input" value={listForm.device_name} onChange={(e) => setListForm({ ...listForm, device_name: e.target.value })} placeholder="如 运输头盔 A-12" /></Field>
               <Field label="公司 ID"><input className="input" value={listForm.company_id} onChange={(e) => setListForm({ ...listForm, company_id: e.target.value })} /></Field>
-              <Field label="公司名称"><input className="input" value={listForm.company_name} onChange={(e) => setListForm({ ...listForm, company_name: e.target.value })} /></Field>
+              <Field label="公司名称"><input className="input" value={listForm.company_name} onChange={(e) => setListForm({ ...listForm, company_name: e.target.value })} placeholder="矿区单位名称" /></Field>
             </div>
             <div className="badge-row">
-              <PrimaryButton loading={devices.loading} onClick={() => devices.run(() => api.get(`/v1/devices${buildQuery({ ...listForm, company_id: listForm.company_id || undefined })}`))}>查询设备列表</PrimaryButton>
+              <PrimaryButton loading={devices.loading} onClick={() => devices.run(() => api.get(`/v1/devices${buildQuery({ ...listForm, company_id: listForm.company_id || undefined })}`))}>刷新设备列表</PrimaryButton>
+              <SecondaryButton onClick={() => deviceGroups.run(() => api.get("/v1/user/devices"))}>同步可见分组</SecondaryButton>
             </div>
             <ResultSummary
-              title="最近设备结果"
+              title="当前选中设备"
               items={[
-                { label: "详情 ID", value: latestDeviceId, action: latestDeviceId ? <QuickFillButton onClick={() => setDeviceId(latestDeviceId)}>带入详情</QuickFillButton> : null },
-                { label: "业务设备号", value: latestBusinessDeviceId, action: latestBusinessDeviceId ? <QuickFillButton onClick={() => {
-                  setFileForm((prev) => ({ ...prev, device_id: latestBusinessDeviceId }));
-                  setLocationForm((prev) => ({ ...prev, device_id: latestBusinessDeviceId }));
-                }}>带入下游</QuickFillButton> : null },
+                { label: "设备名称", value: selectedDevice?.name || "未选择" },
+                { label: "业务设备号", value: selectedDevice?.businessId || latestBusinessDeviceId },
+                { label: "详情 ID", value: selectedDevice?.id || latestDeviceId },
+                { label: "所属单位", value: selectedDevice?.company || "-" },
               ]}
             />
-            <CompactTable title="最近设备表" columns={["详情 ID", "业务设备号", "名称", "状态", "操作"]} rows={deviceRows} />
-            <ResultPanel result={deviceGroups.result || devices.result} />
+            <div className="device-card-grid">
+              {deviceItems.length ? deviceItems.map((asset) => {
+                const active = selectedDevice?.id === asset.id;
+                return (
+                  <button key={`${asset.id}-${asset.businessId}`} className={`device-asset-card ${active ? "device-asset-card-active" : ""}`} onClick={() => applySelectedDevice(asset)}>
+                    <div className="device-asset-top">
+                      <div>
+                        <div className="device-asset-name">{asset.name}</div>
+                        <div className="device-asset-meta">{asset.businessId}</div>
+                      </div>
+                      <StatusBadge label={asset.status} color={asset.status.toLowerCase() === "online" ? "#059669" : "#6b7280"} background={asset.status.toLowerCase() === "online" ? "rgba(16,185,129,0.1)" : "rgba(148,163,184,0.12)"} />
+                    </div>
+                    <div className="device-asset-meta">{asset.company}</div>
+                    <div className="device-asset-footer">点击查看详情、照片与轨迹</div>
+                  </button>
+                );
+              }) : <div className="empty-hint">当前没有找到设备，请调整筛选条件后重试。</div>}
+            </div>
           </div>
         </SectionCard>
 
-        <SectionCard title="设备详情与更新" icon={<Pencil size={18} color="#f59e0b" />}>
+        <SectionCard title="设备档案维护" icon={<Pencil size={18} color="#f59e0b" />}>
           <div className="stack-16">
-            <HintPanel title="调用链路" tone="info">
-              详情与更新都走后端 `/v1/devices/:id` 代理。推荐先查详情确认数据库自增 ID，再修改名称或产品 ID，避免把业务设备号误填到这里。
-            </HintPanel>
-            <Field label="设备详情 ID（数据库自增）" hint="不是业务设备号；通常来自设备列表返回的 id 字段。"><input className="input" value={deviceId} onChange={(e) => setDeviceId(e.target.value)} /></Field>
-            {latestDeviceId ? <div className="badge-row"><QuickFillButton onClick={() => setDeviceId(latestDeviceId)}>使用最近结果中的 ID：{latestDeviceId}</QuickFillButton></div> : null}
-            <PrimaryButton loading={deviceDetail.loading} onClick={() => deviceDetail.run(() => api.get(`/v1/devices/${deviceId}`))}>获取设备详情</PrimaryButton>
+            <div className="device-profile-card">
+              <div className="device-profile-avatar">{(selectedDevice?.name || "设")[0]}</div>
+              <div>
+                <div className="device-profile-title">{selectedDevice?.name || "请选择设备"}</div>
+                <div className="device-profile-subtitle">{selectedDevice?.businessId || "尚未带入业务设备号"}</div>
+              </div>
+            </div>
+            <div className="device-detail-grid">
+              <div className="device-detail-item"><span>详情 ID</span><strong>{selectedDevice?.id || "-"}</strong></div>
+              <div className="device-detail-item"><span>设备状态</span><strong>{selectedDevice?.status || "-"}</strong></div>
+              <div className="device-detail-item"><span>所属单位</span><strong>{selectedDevice?.company || "-"}</strong></div>
+              <div className="device-detail-item"><span>产品 ID</span><strong>{selectedDevice?.productId || "-"}</strong></div>
+            </div>
+            <div className="badge-row">
+              <PrimaryButton loading={deviceDetail.loading} onClick={() => deviceDetail.run(() => api.get(`/v1/devices/${deviceId}`))}>刷新设备档案</PrimaryButton>
+            </div>
             <div className="grid-2">
-              <Field label="更新目标 ID"><input className="input" value={deviceUpdate.id} onChange={(e) => setDeviceUpdate({ ...deviceUpdate, id: e.target.value })} /></Field>
+              <Field label="设备详情 ID"><input className="input" value={deviceUpdate.id} onChange={(e) => setDeviceUpdate({ ...deviceUpdate, id: e.target.value })} /></Field>
               <Field label="产品 ID"><input className="input" value={deviceUpdate.productId} onChange={(e) => setDeviceUpdate({ ...deviceUpdate, productId: e.target.value })} /></Field>
             </div>
-            <Field label="设备名称"><input className="input" value={deviceUpdate.deviceName} onChange={(e) => setDeviceUpdate({ ...deviceUpdate, deviceName: e.target.value })} /></Field>
-              <PrimaryButton loading={updateDevice.loading} onClick={() => updateDevice.run(() => api.put(`/v1/devices/${deviceUpdate.id}`, { deviceName: deviceUpdate.deviceName || undefined, productId: deviceUpdate.productId ? Number(deviceUpdate.productId) : undefined }))}>更新设备</PrimaryButton>
-            <ResultSummary
-              title="详情 / 更新摘要"
-              items={[
-                { label: "最近详情 ID", value: latestDeviceId, action: latestDeviceId ? <QuickFillButton onClick={() => setDeviceUpdate((prev) => ({ ...prev, id: latestDeviceId }))}>带入更新</QuickFillButton> : null },
-                { label: "最近业务设备号", value: latestBusinessDeviceId },
-              ]}
-            />
-            <ResultPanel result={updateDevice.result || deviceDetail.result} />
+            <Field label="设备名称"><input className="input" value={deviceUpdate.deviceName} onChange={(e) => setDeviceUpdate({ ...deviceUpdate, deviceName: e.target.value })} placeholder="修改现场显示名称" /></Field>
+            <div className="badge-row">
+              <PrimaryButton loading={updateDevice.loading} onClick={() => updateDevice.run(() => api.put(`/v1/devices/${deviceUpdate.id}`, { deviceName: deviceUpdate.deviceName || undefined, productId: deviceUpdate.productId ? Number(deviceUpdate.productId) : undefined }))}>保存设备信息</PrimaryButton>
+            </div>
+            {(updateDevice.result?.ok === false || deviceDetail.result?.ok === false) ? <HintPanel tone="warn" title="设备档案提示">{updateDevice.result?.error || deviceDetail.result?.error}</HintPanel> : null}
           </div>
         </SectionCard>
       </div>
 
       <div className="split-two">
-        <SectionCard title="设备文件" icon={<FileSearch size={18} color="#3b82f6" />}>
+        <SectionCard title="现场照片与文件" icon={<FileSearch size={18} color="#3b82f6" />}>
           <div className="stack-16">
-            <HintPanel title="文件操作建议" tone="warn">
-              文档里这个接口只支持单日 `date` 查询，不是开始/结束时间区间。现在默认带今天，避免 `photo` 空日期时直接什么都查不到；如需翻历史，改成别的具体日期即可。
-            </HintPanel>
             <div className="grid-2">
-              <Field label="文件类型"><select className="select" value={fileForm.type} onChange={(e) => setFileForm({ ...fileForm, type: e.target.value })}><option value="photo">photo</option><option value="video">video</option></select></Field>
-              <Field label="设备业务 ID" hint="这里使用平台业务设备号，不是数据库自增 ID。"><input className="input" value={fileForm.device_id} onChange={(e) => setFileForm({ ...fileForm, device_id: e.target.value })} placeholder="31011500991323310014" /></Field>
+              <Field label="文件类型"><select className="select" value={fileForm.type} onChange={(e) => setFileForm({ ...fileForm, type: e.target.value })}><option value="photo">现场照片</option><option value="video">视频文件</option></select></Field>
+              <Field label="设备业务号"><input className="input" value={fileForm.device_id} onChange={(e) => setFileForm({ ...fileForm, device_id: e.target.value })} placeholder="自动带入选中设备" /></Field>
             </div>
-            <Field label="日期" hint="改为日期选择器，提交时仍按接口需要发送 yyyy-MM-dd。"><input className="input" type="date" value={toDateInputValue(fileForm.date)} onChange={(e) => setFileForm({ ...fileForm, date: e.target.value })} /></Field>
+            <Field label="采集日期"><input className="input" type="date" value={toDateInputValue(fileForm.date)} onChange={(e) => setFileForm({ ...fileForm, date: e.target.value })} /></Field>
             <div className="badge-row">
-              <PrimaryButton loading={deviceFiles.loading} onClick={() => deviceFiles.run(() => api.get(`/v1/device/file${buildQuery(fileForm)}`))}>查询文件</PrimaryButton>
-              {latestBusinessDeviceId ? <QuickFillButton onClick={() => setFileForm((prev) => ({ ...prev, device_id: latestBusinessDeviceId }))}>使用最近设备号</QuickFillButton> : null}
+              <PrimaryButton loading={deviceFiles.loading} onClick={() => deviceFiles.run(() => api.get(`/v1/device/file${buildQuery(fileForm)}`))}>读取文件记录</PrimaryButton>
               <QuickFillButton onClick={() => setFileForm((prev) => ({ ...prev, date: todayDate }))}>今天</QuickFillButton>
               <QuickFillButton onClick={() => setFileForm((prev) => ({ ...prev, date: yesterdayDate }))}>昨天</QuickFillButton>
             </div>
-            <Field label="删除文件路径"><input className="input" value={deletePath} onChange={(e) => setDeletePath(e.target.value)} placeholder="粘贴 path 字段" /></Field>
-            {latestFilePath ? <div className="badge-row"><QuickFillButton onClick={() => setDeletePath(latestFilePath)}>使用最近文件 path</QuickFillButton></div> : null}
-            <div className="badge-row">
-              <button className="button button-danger" onClick={() => deleteFile.run(() => api.post("/v1/device/file/delete", { path: deletePath }))}><Trash2 size={16} />删除文件</button>
-            </div>
             <ResultSummary
-              title="最近文件结果"
+              title="文件查询摘要"
               items={[
                 { label: "设备业务号", value: fileForm.device_id },
-                { label: "查询日期", value: fileForm.date, action: latestFileDate ? <QuickFillButton onClick={() => setFileForm((prev) => ({ ...prev, date: latestFileDate }))}>使用最近结果日期</QuickFillButton> : null },
-                { label: "文件路径", value: latestFilePath, action: latestFilePath ? <QuickFillButton onClick={() => setDeletePath(latestFilePath)}>带入删除</QuickFillButton> : null },
+                { label: "查询日期", value: fileForm.date },
+                { label: "最近文件路径", value: latestFilePath, action: latestFilePath ? <QuickFillButton onClick={() => setDeletePath(latestFilePath)}>带入删除</QuickFillButton> : null },
               ]}
             />
             <ResultPreviewList title="最近文件记录" items={filePreviewItems} />
@@ -313,16 +430,20 @@ export function DevicePage() {
                 </div>
               </div>
             ) : null}
-            <ResultPanel result={deleteFile.result || deviceFiles.result} />
+            <div className="device-delete-box">
+              <Field label="删除文件路径" hint="仅在确认文件误传或已备份后使用。"><input className="input" value={deletePath} onChange={(e) => setDeletePath(e.target.value)} placeholder="选择图片后会自动带入" /></Field>
+              <button className="button button-danger" onClick={() => deleteFile.run(() => api.post("/v1/device/file/delete", { path: deletePath }))}><Trash2 size={16} />删除文件</button>
+            </div>
+            {deleteFile.result?.ok === false || deviceFiles.result?.ok === false ? <HintPanel tone="warn" title="文件操作提示">{deleteFile.result?.error || deviceFiles.result?.error}</HintPanel> : null}
           </div>
         </SectionCard>
 
-        <SectionCard title="历史轨迹" icon={<MapPinned size={18} color="#8b5cf6" />}>
+        <SectionCard title="设备轨迹回看" icon={<MapPinned size={18} color="#8b5cf6" />}>
           <div className="stack-16">
-            <HintPanel title="时间参数说明" tone="info">
-              轨迹接口接收秒级时间戳。这里改成日期时间选择器，前端会自动把选择值转换成秒级时间戳再发给后端；`levels` 可按 `1,2,3,4` 组合过滤定位精度来源。
+            <HintPanel title="轨迹回看" tone="info">
+              适合值守或追溯场景。选择设备和时间范围后即可回看定位点，时间输入已转成用户可选的日期时间控件。
             </HintPanel>
-            <Field label="设备业务 ID"><input className="input" value={locationForm.device_id} onChange={(e) => setLocationForm({ ...locationForm, device_id: e.target.value })} /></Field>
+            <Field label="设备业务号"><input className="input" value={locationForm.device_id} onChange={(e) => setLocationForm({ ...locationForm, device_id: e.target.value })} placeholder="自动带入选中设备" /></Field>
             <div className="grid-2">
               <Field label="定位精度 levels"><input className="input" value={locationForm.levels} onChange={(e) => setLocationForm({ ...locationForm, levels: e.target.value })} /></Field>
               <Field label="开始时间"><input className="input" type="datetime-local" value={toDatetimeLocalValue(locationForm.start_time)} onChange={(e) => setLocationForm({ ...locationForm, start_time: toUnixSecondsFromDatetimeLocal(e.target.value) })} /></Field>
@@ -330,22 +451,40 @@ export function DevicePage() {
             <Field label="结束时间"><input className="input" type="datetime-local" value={toDatetimeLocalValue(locationForm.end_time)} onChange={(e) => setLocationForm({ ...locationForm, end_time: toUnixSecondsFromDatetimeLocal(e.target.value) })} /></Field>
             <div className="badge-row">
               <PrimaryButton loading={locations.loading} onClick={() => locations.run(() => api.get(`/v1/locations${buildQuery(locationForm)}`))}>查询轨迹</PrimaryButton>
-              {latestBusinessDeviceId ? <QuickFillButton onClick={() => setLocationForm((prev) => ({ ...prev, device_id: latestBusinessDeviceId }))}>使用最近设备号</QuickFillButton> : null}
-              {latestLocationDeviceId ? <QuickFillButton onClick={() => setLocationForm((prev) => ({ ...prev, device_id: latestLocationDeviceId }))}>使用最近轨迹设备号</QuickFillButton> : null}
+              <QuickFillButton onClick={() => {
+                const end = new Date();
+                const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+                setLocationForm((prev) => ({ ...prev, start_time: String(Math.floor(start.getTime() / 1000)), end_time: String(Math.floor(end.getTime() / 1000)) }));
+              }}>最近24小时</QuickFillButton>
               {latestLocationTimeRange.start_time || latestLocationTimeRange.end_time ? <QuickFillButton onClick={() => setLocationForm((prev) => ({ ...prev, start_time: latestLocationTimeRange.start_time || prev.start_time, end_time: latestLocationTimeRange.end_time || prev.end_time }))}>使用最近轨迹时间段</QuickFillButton> : null}
-              <SecondaryButton onClick={() => setLocationForm({ device_id: "", levels: "1,2,3,4", start_time: "", end_time: "" })}>重置</SecondaryButton>
             </div>
             <ResultSummary
-              title="最近轨迹摘要"
+              title="轨迹查询摘要"
               items={[
-                { label: "轨迹设备号", value: latestLocationDeviceId, action: latestLocationDeviceId ? <QuickFillButton onClick={() => setLocationForm((prev) => ({ ...prev, device_id: latestLocationDeviceId }))}>带入查询</QuickFillButton> : null },
-                { label: "最近开始时间", value: latestLocationTimeRange.start_time, action: latestLocationTimeRange.start_time ? <QuickFillButton onClick={() => setLocationForm((prev) => ({ ...prev, start_time: latestLocationTimeRange.start_time }))}>带入开始</QuickFillButton> : null },
-                { label: "最近结束时间", value: latestLocationTimeRange.end_time, action: latestLocationTimeRange.end_time ? <QuickFillButton onClick={() => setLocationForm((prev) => ({ ...prev, end_time: latestLocationTimeRange.end_time }))}>带入结束</QuickFillButton> : null },
-                { label: "当前 levels", value: locationForm.levels },
+                { label: "轨迹设备号", value: latestLocationDeviceId || locationForm.device_id },
+                { label: "开始时间", value: toDatetimeLocalValue(locationForm.start_time) || "-" },
+                { label: "结束时间", value: toDatetimeLocalValue(locationForm.end_time) || "-" },
+                { label: "精度过滤", value: locationForm.levels },
               ]}
             />
+            <div className="result-summary">
+              <div className="result-summary-title">帽子返回定位点</div>
+              <div className="trajectory-map-card">
+                <div className="trajectory-map-meta">
+                  <div className="trajectory-map-badge">最新帽子坐标</div>
+                  <div className="trajectory-map-coords">{latestLocationPoint ? `${latestLocationPoint.longitude}, ${latestLocationPoint.latitude}` : "等待返回经纬度"}</div>
+                  <div className="trajectory-map-submeta">{latestLocationPoint ? `设备 ${latestLocationPoint.deviceId || "-"} · ${latestLocationPoint.time || "-"}` : (amapError || "查询轨迹后，这里会用一个点标出帽子返回的经纬度。")}</div>
+                </div>
+                <div className="trajectory-map-shell">
+                  <div ref={locationMapRef} className="trajectory-map-canvas">
+                    {!amapReady ? <div className="empty-hint"><MapPinned size={32} color="#8b5cf6" /><div>{amapError || "正在加载定位地图..."}</div></div> : null}
+                    {amapReady && !latestLocationPoint ? <div className="soft-panel trajectory-map-empty">等待轨迹接口返回帽子经纬度</div> : null}
+                  </div>
+                </div>
+              </div>
+            </div>
             <ResultPreviewList title="最近轨迹点" items={locationPreviewItems} />
-            <ResultPanel result={locations.result} />
+            {(locations.result?.ok === false) ? <HintPanel tone="warn" title="轨迹查询提示">{locations.result?.error}</HintPanel> : null}
           </div>
         </SectionCard>
       </div>

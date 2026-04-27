@@ -1,17 +1,15 @@
 import {
-  Activity,
-  BarChart3,
+  AudioLines,
   BellRing,
+  Camera,
   Cpu,
-  Database,
   HardHat,
   LayoutDashboard,
-  Map,
+  Mic,
+  Monitor,
   Radio,
   ShieldAlert,
-  UserRound,
-  Video,
-  Waves,
+  UserCircle2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,41 +23,33 @@ export interface MenuItem {
 export const menuGroups: Array<{ group: string; items: MenuItem[] }> = [
   {
     group: "工作台",
-    items: [
-      { label: "首页门户", path: "/home-portal", group: "工作台", icon: LayoutDashboard },
-      { label: "全局态势", path: "/global-status", group: "工作台", icon: Map },
-    ],
+    items: [{ label: "首页门户", path: "/home-portal", group: "工作台", icon: LayoutDashboard }],
   },
   {
-    group: "平台联调",
+    group: "安全与联动",
     items: [
-      { label: "认证用户", path: "/auth-user", group: "平台联调", icon: UserRound },
-      { label: "设备管理", path: "/devices", group: "平台联调", icon: Cpu },
-      { label: "围栏报警", path: "/fences-alarms", group: "平台联调", icon: ShieldAlert },
-      { label: "对讲分组", path: "/talk-groups", group: "平台联调", icon: Radio },
-      { label: "国标视频", path: "/gb-video", group: "平台联调", icon: Video },
-      { label: "私有 RTC", path: "/rtc-files", group: "平台联调", icon: Waves },
-      { label: "LiveKit", path: "/livekit", group: "平台联调", icon: Activity },
-      { label: "本地工位", path: "/local-workbench", group: "平台联调", icon: Database },
-      { label: "接口总览", path: "/analysis-result", group: "平台联调", icon: BarChart3 },
-      { label: "调试记录", path: "/safety-alert", group: "平台联调", icon: BellRing },
+      { label: "全局态势", path: "/global-status", group: "安全与联动", icon: Monitor },
+      { label: "安全告警", path: "/fences-alarms", group: "安全与联动", icon: ShieldAlert },
+      { label: "设备管理", path: "/devices", group: "安全与联动", icon: Cpu },
+      { label: "现场视频", path: "/gb-video", group: "安全与联动", icon: Camera },
+      { label: "处置记录", path: "/safety-alert", group: "安全与联动", icon: BellRing },
+      { label: "对讲分组", path: "/talk-groups", group: "安全与联动", icon: Mic },
+      { label: "RTC 文件", path: "/rtc-files", group: "安全与联动", icon: AudioLines },
+      { label: "LiveKit", path: "/livekit", group: "安全与联动", icon: Radio },
+      { label: "账号中心", path: "/account", group: "安全与联动", icon: UserCircle2 },
     ],
   },
 ];
 
 export const quickLinks = [
-  { label: "设备管理", path: "/devices", icon: Cpu, color: "#ec4899" },
-  { label: "围栏报警", path: "/fences-alarms", icon: ShieldAlert, color: "#f59e0b" },
-  { label: "国标视频", path: "/gb-video", icon: Video, color: "#3b82f6" },
-  { label: "私有 RTC", path: "/rtc-files", icon: Waves, color: "#8b5cf6" },
-  { label: "LiveKit", path: "/livekit", icon: Activity, color: "#10b981" },
-  { label: "认证用户", path: "/auth-user", icon: HardHat, color: "#10b981" },
+  { label: "全局态势", path: "/global-status", icon: Monitor, color: "#3b82f6" },
+  { label: "设备管理", path: "/devices", icon: Cpu, color: "#10b981" },
+  { label: "安全告警", path: "/fences-alarms", icon: ShieldAlert, color: "#f59e0b" },
+  { label: "现场视频", path: "/gb-video", icon: Camera, color: "#8b5cf6" },
+  { label: "处置记录", path: "/safety-alert", icon: BellRing, color: "#ef4444" },
+  { label: "对讲分组", path: "/talk-groups", icon: Mic, color: "#0f766e" },
+  { label: "账号中心", path: "/account", icon: UserCircle2, color: "#2563eb" },
+  { label: "首页门户", path: "/home-portal", icon: HardHat, color: "#10b981" },
 ];
 
-export const defaultOpenTabs = [
-  "/home-portal",
-  "/global-status",
-  "/devices",
-  "/fences-alarms",
-  "/gb-video",
-];
+export const defaultOpenTabs = ["/home-portal", "/global-status", "/devices", "/fences-alarms", "/gb-video", "/talk-groups", "/account"];
